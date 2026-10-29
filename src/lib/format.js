@@ -9,6 +9,11 @@ export function defaultClipName(date) {
   )
 }
 
+// ชื่อโฟลเดอร์เริ่มต้นตอนผู้ใช้ไม่ได้พิมพ์ชื่อ เช่น "2026-10-30 16:38"
+export function defaultFolderName(date) {
+  return defaultClipName(date).slice(0, -3)
+}
+
 // วินาที → "1:05"
 export function formatDuration(seconds) {
   const total = Math.floor(seconds)

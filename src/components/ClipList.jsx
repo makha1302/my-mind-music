@@ -1,12 +1,12 @@
-import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import { db } from '../lib/db'
 import { formatDuration } from '../lib/format'
+import { renameClip } from '../lib/ideas'
+import EditableName from './EditableName'
 
-// รายการคลิปใหม่สุดอยู่บน
-// useLiveQuery คอยดู DB ให้ พอมีคลิปเพิ่มหรือเปลี่ยน หน้าจอจะอัปเดตเอง ไม่ต้องสั่ง
-export default function ClipList() {
-  const clips = useLiveQuery(() => db.clips.orderBy('createdAt').reverse().toArray())
+// รายการคลิป ใช้ได้ทั้งในตะกร้าและในโฟลเดอร์ หน้าที่เรียกเป็นคนบอกว่าจะโชว์คลิปไหน
+// clips เป็น undefined ระหว่างโหลดครั้งแรก (จาก useLiveQuery) ก็ยังไม่ต้องโชว์อะไร
+export default function ClipList({ clips, emptyText }) {
   const [playingId, setPlayingId] = useState(null)
   // ใช้ตัวเล่นเสียงตัวเดียวทั้งรายการ กดคลิปใหม่ คลิปเก่าจะหยุดเอง
   const audioRef = useRef(null)
@@ -44,10 +44,7 @@ export default function ClipList() {
     <>
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} hidden />
 
-      {/* clips เป็น undefined ระหว่างโหลดครั้งแรก ไม่ต้องโชว์อะไร */}
-      {clips?.length === 0 && (
-        <p className="mt-8 text-center text-neutral-500">ยังไม่มีคลิป ลองฮัมอะไรสักหน่อย</p>
-      )}
+      {clips?.length === 0 && <p className="mt-8 text-center text-neutral-500">{emptyText}</p>}
 
       <ul className="divide-y divide-neutral-800">
         {clips?.map((clip) => {
@@ -67,7 +64,7 @@ export default function ClipList() {
                 </svg>
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate">{clip.name}</p>
+                <EditableName value={clip.name} onSave={(name) => renameClip(clip.id, name)} />
                 <p className="text-sm text-neutral-500">
                   {isRecording ? 'กำลังอัด...' : formatDuration(clip.duration)}
                 </p>

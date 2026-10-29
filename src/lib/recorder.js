@@ -1,5 +1,6 @@
 import { db } from './db'
 import { defaultClipName } from './format'
+import { currentSessionId } from './ideas'
 
 // ฟอร์แมตที่อยากได้ เรียงจากชอบที่สุด
 // mp4/AAC เปิดได้ทุกเครื่องรวมถึงไอแพด ถ้าเครื่องไม่รองรับค่อยถอยไปใช้ webm/opus
@@ -13,25 +14,8 @@ const MIME_CANDIDATES = [
 // ส่งชิ้นเสียงออกมาทุกกี่มิลลิวินาที = แอปตายกลางทางจะเสียเสียงไปไม่เกินเท่านี้
 const CHUNK_MS = 1000
 
-const SESSION_KEY = 'currentSessionId'
-
 function pickMimeType() {
   return MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type)) ?? ''
-}
-
-// ตะกร้าปัจจุบัน — ขั้น 1.1 แค่สร้างไว้ให้ทุกคลิปมี sessionId ตรรกะตะกร้าจริงอยู่ขั้น 1.2
-function currentSessionId() {
-  try {
-    let id = localStorage.getItem(SESSION_KEY)
-    if (!id) {
-      id = crypto.randomUUID()
-      localStorage.setItem(SESSION_KEY, id)
-    }
-    return id
-  } catch {
-    // บางโหมด (เช่นหน้าต่างส่วนตัว) localStorage ใช้ไม่ได้ ก็ใช้ตะกร้าชั่วคราวไป
-    return crypto.randomUUID()
-  }
 }
 
 // กันจอดับระหว่างอัด (จอดับแล้วเบราว์เซอร์มักหยุดอัด)
