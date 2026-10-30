@@ -3,6 +3,7 @@ import Toast from './components/Toast'
 import { checkForgottenBasket, rememberLeftApp } from './lib/forgottenBasket'
 import { recoverUnfinishedClips } from './lib/recorder'
 import { useHashRoute } from './lib/useHashRoute'
+import AccountPage from './pages/AccountPage'
 import BasketPage from './pages/BasketPage'
 import FolderPage from './pages/FolderPage'
 import FoldersPage from './pages/FoldersPage'
@@ -42,7 +43,8 @@ export default function App() {
       {page === 'folders' && <FoldersPage />}
       {/* key={param} = เปลี่ยนโฟลเดอร์แล้วเริ่มหน้าใหม่ ไม่เอา state ของโฟลเดอร์เก่ามาปน */}
       {page === 'folder' && <FolderPage key={param} id={param} />}
-      {page !== 'folders' && page !== 'folder' && <BasketPage />}
+      {page === 'account' && <AccountPage />}
+      {!['folders', 'folder', 'account'].includes(page) && <BasketPage />}
 
       {toast && <Toast message={toast} onClose={closeToast} />}
     </div>
