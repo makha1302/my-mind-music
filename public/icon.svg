@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- ไอคอนต้นฉบับ: ไมค์ขาวในวงกลมแดง (สีเดียวกับปุ่มอัด) บนพื้นดำ
+       ของสำคัญอยู่ในวงกลางไม่เกิน 80% ของภาพ แอนดรอยด์ตัดขอบเป็นวงกลม/สี่เหลี่ยมมนได้โดยไม่แหว่ง
+       เปลี่ยนไอคอน: แก้ไฟล์นี้ แล้วรัน npm run generate-pwa-assets -->
+  <rect width="512" height="512" fill="#0a0a0a" />
+  <circle cx="256" cy="256" r="168" fill="#dc2626" />
+  <rect x="216" y="146" width="80" height="140" rx="40" fill="#fff" />
+  <path d="M184 250a72 72 0 0 0 144 0" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" />
+  <path d="M256 322v44M220 366h72" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" />
+</svg>

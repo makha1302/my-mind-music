@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
+import { getStorageInfo } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { goBack } from '../lib/useHashRoute'
 import { useSession } from '../lib/useSession'
@@ -31,6 +32,7 @@ export default function AccountPage() {
         )}
         {supabase && session === null && <LoginForm />}
         {session && <SignedIn email={session.user.email} />}
+        <StorageStatus />
       </main>
     </>
   )
@@ -79,6 +81,28 @@ function LoginForm() {
       </button>
       <p className="min-h-5 text-sm text-red-400">{error}</p>
     </form>
+  )
+}
+
+// ข้อมูลในเครื่องปลอดภัยไหม (ได้สิทธิ์เก็บถาวรหรือยัง) + ใช้พื้นที่ไปเท่าไหร่
+function StorageStatus() {
+  const [info, setInfo] = useState(null)
+
+  useEffect(() => {
+    getStorageInfo().then(setInfo)
+  }, [])
+
+  if (!info) return null
+  return (
+    <div className="mt-8 border-t border-neutral-900 pt-4 text-sm">
+      <p className="text-neutral-500">ข้อมูลในเครื่องนี้</p>
+      {info.persisted ? (
+        <p>ปลอดภัย ✓ เบราว์เซอร์จะไม่ลบทิ้งเอง</p>
+      ) : (
+        <p className="text-amber-400">อาจถูกลบถ้าเครื่องเต็ม — ติดตั้งแอปลงหน้าจอโฮมช่วยได้</p>
+      )}
+      {info.usageMB != null && <p className="text-neutral-500">ใช้พื้นที่ไป {info.usageMB.toFixed(1)} MB</p>}
+    </div>
   )
 }
 

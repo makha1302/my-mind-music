@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import Toast from './components/Toast'
+import UpdateBanner from './components/UpdateBanner'
 import { checkForgottenBasket, rememberLeftApp } from './lib/forgottenBasket'
 import { recoverUnfinishedClips } from './lib/recorder'
+import { requestPersistentStorage } from './lib/storage'
 import { startAutoSync } from './lib/sync'
 import { useHashRoute } from './lib/useHashRoute'
 import AccountPage from './pages/AccountPage'
@@ -41,6 +43,11 @@ export default function App() {
   // ซิงก์ขึ้นคลาวด์เองตอนเปิดแอป / ล็อกอิน / กลับเข้าแอป / เน็ตกลับมา
   useEffect(() => startAutoSync(), [])
 
+  // ขอให้เบราว์เซอร์ไม่ลบข้อมูลในเครื่องทิ้งเอง (เรียกซ้ำได้ ถ้าได้แล้วก็แค่ตอบว่าได้)
+  useEffect(() => {
+    requestPersistentStorage()
+  }, [])
+
   return (
     // h-dvh = สูงเท่าจอพอดี แต่ละหน้าให้ส่วน main เลื่อนได้ในตัว ส่วนหัวกับท้ายอยู่กับที่
     <div className="flex h-dvh flex-col bg-neutral-950 text-neutral-100">
@@ -51,6 +58,7 @@ export default function App() {
       {!['folders', 'folder', 'account'].includes(page) && <BasketPage />}
 
       {toast && <Toast message={toast} onClose={closeToast} />}
+      <UpdateBanner />
     </div>
   )
 }
