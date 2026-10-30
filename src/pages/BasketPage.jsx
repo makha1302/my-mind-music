@@ -4,7 +4,7 @@ import ClipList from '../components/ClipList'
 import EndIdeaSheet from '../components/EndIdeaSheet'
 import PageHeader from '../components/PageHeader'
 import RecordButton from '../components/RecordButton'
-import { getBasketClips } from '../lib/ideas'
+import { getBasketClips, getOtherDeviceBasketClips } from '../lib/ideas'
 import { supabase } from '../lib/supabase'
 import { navigate } from '../lib/useHashRoute'
 import { useSession } from '../lib/useSession'
@@ -12,6 +12,7 @@ import { useSession } from '../lib/useSession'
 // หน้าแรก: ตะกร้า + ปุ่มอัด + ปุ่มหมดไอเดีย
 export default function BasketPage() {
   const clips = useLiveQuery(getBasketClips)
+  const otherClips = useLiveQuery(getOtherDeviceBasketClips)
   const [sheetOpen, setSheetOpen] = useState(false)
   const session = useSession()
   // ไม่โชว์จุดแดงถ้ายังไม่ได้ตั้งค่า Supabase เพราะล็อกอินไม่ได้อยู่แล้ว
@@ -49,6 +50,14 @@ export default function BasketPage() {
       <main className="flex-1 overflow-y-auto px-4">
         <p className="text-sm text-neutral-500">ตะกร้า</p>
         <ClipList clips={clips} emptyText="ตะกร้าว่าง ลองฮัมอะไรสักหน่อย" />
+
+        {/* ตะกร้าของเครื่องอื่นที่ยังไม่กดหมดไอเดีย ฟังได้ แต่เครื่องนี้ไม่ย้ายให้ */}
+        {otherClips?.length > 0 && (
+          <section className="mt-8">
+            <p className="text-sm text-neutral-500">จากเครื่องอื่น (ยังไม่ได้กดหมดไอเดีย)</p>
+            <ClipList clips={otherClips} />
+          </section>
+        )}
       </main>
 
       {/* 3 ช่อง: ว่าง | ปุ่มอัด (กลาง) | หมดไอเดีย (ขวา ใกล้นิ้วโป้งมือขวา) */}

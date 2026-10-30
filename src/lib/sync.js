@@ -1,15 +1,16 @@
 import { db } from './db'
 import { supabase } from './supabase'
 
-// ซิงก์ขาขึ้น: ส่งของที่ยังเป็น syncStatus 'local' ขึ้นคลาวด์
+// ซิงก์ 1 รอบ = ขาขึ้น (ส่งของที่ยังเป็น syncStatus 'local') แล้วตามด้วยขาลง (ดึงของจากเครื่องอื่น)
 // ในเครื่องยังเป็นที่เก็บหลัก ถ้าพังกลางทาง (เน็ตหลุด, แอปถูกปิด) รอบหน้าก็ทำต่อจากที่ค้าง
+// ไฟล์เสียงไม่ถูกดึงลงมาตอนซิงก์ โหลดตอนกดฟังเท่านั้น (downloadAudio)
 
 const BUCKET = 'idea-clips'
 // หลังแก้ข้อมูล รอแป๊บนึงก่อนส่ง เปลี่ยนชื่อหลายคลิปติดๆ กันจะได้ส่งรอบเดียว
 const DEBOUNCE_MS = 2000
 
 // ---------------------------------------------------------------------------
-// แปลงแถวในเครื่อง (camelCase, เวลาเป็นมิลลิวินาที) → แถวบนคลาวด์ (snake_case, timestamptz)
+// แปลงแถวในเครื่อง (camelCase, เวลาเป็นมิลลิวินาที) ↔ แถวบนคลาวด์ (snake_case, timestamptz)
 // ไม่ส่ง user_id ฐานข้อมูลใส่ให้เองจากคนที่ล็อกอิน
 // ---------------------------------------------------------------------------
 
@@ -36,6 +37,34 @@ function clipToRow(clip) {
     duration: clip.duration,
     created_at: toIso(clip.createdAt),
     updated_at: toIso(clip.updatedAt),
+  }
+}
+
+// ขากลับ: แถวบนคลาวด์ → แถวในเครื่อง (ไม่เอา user_id และ bpm/key ที่ยังไม่ได้ใช้)
+const toMs = (iso) => Date.parse(iso)
+
+function folderFromRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    isAuto: row.is_auto,
+    createdAt: toMs(row.created_at),
+    updatedAt: toMs(row.updated_at),
+  }
+}
+
+function clipFromRow(row) {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    folderId: row.folder_id,
+    name: row.name,
+    storagePath: row.storage_path,
+    mimeType: row.mime_type,
+    duration: row.duration,
+    status: 'done', // บนคลาวด์มีแต่คลิปที่อัดเสร็จแล้ว
+    createdAt: toMs(row.created_at),
+    updatedAt: toMs(row.updated_at),
   }
 }
 
@@ -118,6 +147,54 @@ async function pushClips(userId) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// ดึงลง
+// ---------------------------------------------------------------------------
+
+// ดึงทุกแถวทุกรอบ (แค่ข้อมูล ไม่มีไฟล์เสียง เบามาก)
+// ไม่ดึงเฉพาะที่เปลี่ยน เพราะต้องพึ่งนาฬิกาแต่ละเครื่องให้ตรงกัน เพี้ยนนิดเดียวของก็ตกหล่น
+// Supabase ส่งได้ทีละไม่เกิน 1,000 แถว เลยดึงเป็นหน้าๆ
+const PAGE_SIZE = 1000
+
+async function fetchAll(tableName) {
+  const rows = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) throw error
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) return rows
+  }
+}
+
+// รวมของจากคลาวด์เข้าเครื่อง: ใครมี updatedAt ใหม่กว่าชนะ (last-write-wins)
+// - ในเครื่องไม่มี → เพิ่ม
+// - ในเครื่องใหม่กว่าหรือเท่ากัน → ไม่แตะ (ถ้ายังเป็น 'local' เดี๋ยวรอบหน้าจะส่งขึ้นไปทับเอง)
+// - คลาวด์ใหม่กว่า → ทับ แต่ไม่แตะฟิลด์ที่มีแค่ในเครื่อง เช่นไฟล์เสียงที่โหลดไว้แล้ว
+async function mergeIntoLocal(table, remoteRows) {
+  await db.transaction('rw', table, async () => {
+    for (const remote of remoteRows) {
+      const local = await table.get(remote.id)
+      if (!local) {
+        await table.add({ ...remote, syncStatus: 'synced' })
+      } else if (remote.updatedAt > local.updatedAt) {
+        await table.update(remote.id, { ...remote, syncStatus: 'synced' })
+      }
+    }
+  })
+}
+
+async function pull() {
+  // โฟลเดอร์ก่อน คลิปที่ดึงลงมาจะได้มีโฟลเดอร์ให้อยู่
+  const folders = await fetchAll('idea_folders')
+  await mergeIntoLocal(db.folders, folders.map(folderFromRow))
+  const clips = await fetchAll('idea_clips')
+  await mergeIntoLocal(db.clips, clips.map(clipFromRow))
+}
+
 async function runSync() {
   if (!navigator.onLine) return
   // getSession อ่านจากในเครื่อง ไม่ต้องต่อเน็ต ยังไม่ล็อกอิน = ไม่ซิงก์ ของค้าง 'local' ไว้ก่อน
@@ -125,8 +202,21 @@ async function runSync() {
   const userId = data.session?.user.id
   if (!userId) return
 
+  // ส่งก่อนดึง ของที่เพิ่งแก้ในเครื่องจะได้ขึ้นไปก่อน แล้วดึงกลับมาก็เป็นของล่าสุดอยู่แล้ว
   await pushFolders()
   await pushClips(userId)
+  await pull()
+}
+
+// โหลดไฟล์เสียงของคลิปที่มาจากเครื่องอื่น แล้วเก็บไว้ในเครื่อง ครั้งหน้าฟังได้แม้ไม่มีเน็ต
+export async function downloadAudio(clip) {
+  if (!supabase || !clip.storagePath) throw new Error('คลิปนี้ไม่มีไฟล์บนคลาวด์')
+  const { data, error } = await supabase.storage.from(BUCKET).download(clip.storagePath)
+  if (error) throw error
+  // ห่อใหม่ให้มีชนิดไฟล์ที่ถูกต้อง Safari ต้องรู้ชนิดไฟล์ถึงจะเล่นได้
+  const blob = new Blob([data], { type: baseType(clip.mimeType) })
+  await db.audio.put({ clipId: clip.id, blob })
+  return blob
 }
 
 // ---------------------------------------------------------------------------
