@@ -1,4 +1,6 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Toast from './components/Toast'
+import { checkForgottenBasket, rememberLeftApp } from './lib/forgottenBasket'
 import { recoverUnfinishedClips } from './lib/recorder'
 import { useHashRoute } from './lib/useHashRoute'
 import BasketPage from './pages/BasketPage'
@@ -7,10 +9,31 @@ import FoldersPage from './pages/FoldersPage'
 
 export default function App() {
   const [page, param] = useHashRoute()
+  const [toast, setToast] = useState(null)
+  // useCallback = ฟังก์ชันเดิมทุกครั้งที่วาดใหม่ ไม่งั้นตัวจับเวลาใน Toast จะเริ่มนับใหม่ตลอด
+  const closeToast = useCallback(() => setToast(null), [])
 
-  // เปิดแอปปุ๊บ กู้คลิปที่ค้างจากรอบก่อน (แอปตายระหว่างอัด)
   useEffect(() => {
-    recoverUnfinishedClips()
+    async function checkBasket() {
+      const folderName = await checkForgottenBasket()
+      if (folderName) setToast(`ย้ายตะกร้าเก่าไป "${folderName}" แล้ว`)
+    }
+
+    // เปิดแอป: กู้คลิปค้างก่อน คลิปที่กู้ได้จะได้ไปกับตะกร้าด้วย แล้วค่อยเช็กว่าลืมกดหมดไอเดียไหม
+    recoverUnfinishedClips().then(checkBasket)
+
+    // ออกจากแอป = จดเวลา, กลับเข้าแอป = เช็กว่าออกไปนานเกินไหม
+    function handleVisibility() {
+      if (document.visibilityState === 'hidden') rememberLeftApp()
+      else checkBasket()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    // pagehide กันไว้อีกชั้น บางเครื่องปิดหน้าโดยไม่ส่ง visibilitychange
+    window.addEventListener('pagehide', rememberLeftApp)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('pagehide', rememberLeftApp)
+    }
   }, [])
 
   return (
@@ -20,6 +43,8 @@ export default function App() {
       {/* key={param} = เปลี่ยนโฟลเดอร์แล้วเริ่มหน้าใหม่ ไม่เอา state ของโฟลเดอร์เก่ามาปน */}
       {page === 'folder' && <FolderPage key={param} id={param} />}
       {page !== 'folders' && page !== 'folder' && <BasketPage />}
+
+      {toast && <Toast message={toast} onClose={closeToast} />}
     </div>
   )
 }

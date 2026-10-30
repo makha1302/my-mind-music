@@ -84,6 +84,22 @@ export async function fileBasket({ folderId, newFolderName, isAuto = false }) {
   startNewSession()
 }
 
+const AUTO_FOLDER_PATTERN = /^ลืมกดหมดไอเดีย (\d+)$/
+
+// ลืมกด "หมดไอเดีย": ย้ายตะกร้าเข้า "ลืมกดหมดไอเดีย NN" แล้วคืนชื่อโฟลเดอร์
+// เลขถัดไป = เลขมากสุดที่มีอยู่ + 1 (โฟลเดอร์ที่ถูกเปลี่ยนชื่อไปแล้วไม่นับ)
+export async function fileForgottenBasket() {
+  const autoFolders = await db.folders.filter((folder) => folder.isAuto).toArray()
+  const numbers = autoFolders
+    .map((folder) => folder.name.match(AUTO_FOLDER_PATTERN))
+    .filter(Boolean)
+    .map((match) => Number(match[1]))
+  const next = Math.max(0, ...numbers) + 1
+  const name = `ลืมกดหมดไอเดีย ${String(next).padStart(2, '0')}`
+  await fileBasket({ newFolderName: name, isAuto: true })
+  return name
+}
+
 export async function renameClip(id, name) {
   await db.clips.update(id, { name: name.trim(), updatedAt: Date.now() })
 }
