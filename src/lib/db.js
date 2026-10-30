@@ -19,3 +19,10 @@ db.version(1).stores({
 db.version(2).stores({
   folders: 'id, createdAt',
 })
+
+// ขั้น 1.5: ค้นหาแถวที่ยังไม่ขึ้นคลาวด์ได้เร็ว (syncStatus 'local' = ยังไม่ขึ้น, 'synced' = ขึ้นแล้ว)
+// แถวเดิมทุกแถวเป็น 'local' อยู่แล้ว ซิงก์ครั้งแรกเลยอัปของเก่าทั้งหมดขึ้นไปเอง
+db.version(3).stores({
+  clips: 'id, sessionId, folderId, status, createdAt, syncStatus',
+  folders: 'id, createdAt, syncStatus',
+})

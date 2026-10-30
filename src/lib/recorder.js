@@ -1,6 +1,7 @@
 import { db } from './db'
 import { defaultClipName } from './format'
 import { currentSessionId } from './ideas'
+import { requestSync } from './sync'
 
 // ฟอร์แมตที่อยากได้ เรียงจากชอบที่สุด
 // mp4/AAC เปิดได้ทุกเครื่องรวมถึงไอแพด ถ้าเครื่องไม่รองรับค่อยถอยไปใช้ webm/opus
@@ -103,7 +104,13 @@ export async function startRecording({ onStop } = {}) {
 
 // เอาชิ้นเสียงทั้งหมดของคลิปมาต่อกันเป็นไฟล์เดียว แล้วเปลี่ยนสถานะเป็น done
 // ทำใน transaction เดียว ถ้าพังกลางทางข้อมูลจะไม่ครึ่งๆ กลางๆ
+// เสร็จแล้วสั่งซิงก์ คลิปจะขึ้นคลาวด์เองถ้าล็อกอินและมีเน็ต
 async function finalizeClip(id, duration) {
+  await assembleClip(id, duration)
+  requestSync()
+}
+
+async function assembleClip(id, duration) {
   await db.transaction('rw', db.clips, db.chunks, db.audio, async () => {
     const clip = await db.clips.get(id)
     // กันการประกอบซ้ำ (เช่นถูกเรียกพร้อมกันสองที่)
@@ -126,6 +133,7 @@ async function finalizeClip(id, duration) {
       status: 'done',
       duration: duration ?? clip.duration,
       updatedAt: Date.now(),
+      syncStatus: 'local',
     })
   })
 }

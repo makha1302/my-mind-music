@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Toast from './components/Toast'
 import { checkForgottenBasket, rememberLeftApp } from './lib/forgottenBasket'
 import { recoverUnfinishedClips } from './lib/recorder'
+import { startAutoSync } from './lib/sync'
 import { useHashRoute } from './lib/useHashRoute'
 import AccountPage from './pages/AccountPage'
 import BasketPage from './pages/BasketPage'
@@ -36,6 +37,9 @@ export default function App() {
       window.removeEventListener('pagehide', rememberLeftApp)
     }
   }, [])
+
+  // ซิงก์ขึ้นคลาวด์เองตอนเปิดแอป / ล็อกอิน / กลับเข้าแอป / เน็ตกลับมา
+  useEffect(() => startAutoSync(), [])
 
   return (
     // h-dvh = สูงเท่าจอพอดี แต่ละหน้าให้ส่วน main เลื่อนได้ในตัว ส่วนหัวกับท้ายอยู่กับที่

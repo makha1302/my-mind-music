@@ -2,7 +2,32 @@ import { useEffect, useRef, useState } from 'react'
 import { db } from '../lib/db'
 import { formatDuration } from '../lib/format'
 import { renameClip } from '../lib/ideas'
+import { supabase } from '../lib/supabase'
 import EditableName from './EditableName'
+
+// ไอคอนเล็กข้างความยาว: นาฬิกา = รอขึ้นคลาวด์, เมฆ = ขึ้นแล้ว
+// สีจางๆ ไม่แย่งสายตาจากปุ่มอัด (ไม่โชว์ถ้ายังไม่ได้ตั้งค่า Supabase)
+function SyncIcon({ synced }) {
+  const label = synced ? 'ขึ้นคลาวด์แล้ว' : 'รอขึ้นคลาวด์'
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      role="img"
+      aria-label={label}
+      className="size-3.5 fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]"
+    >
+      <title>{label}</title>
+      {synced ? (
+        <path d="M7 18a4.5 4.5 0 0 1-.5-8.97A6 6 0 0 1 18 9.5a4.25 4.25 0 0 1-.5 8.5z" />
+      ) : (
+        <>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7.5V12l3 2" />
+        </>
+      )}
+    </svg>
+  )
+}
 
 // รายการคลิป ใช้ได้ทั้งในตะกร้าและในโฟลเดอร์ หน้าที่เรียกเป็นคนบอกว่าจะโชว์คลิปไหน
 // clips เป็น undefined ระหว่างโหลดครั้งแรก (จาก useLiveQuery) ก็ยังไม่ต้องโชว์อะไร
@@ -65,8 +90,9 @@ export default function ClipList({ clips, emptyText }) {
               </button>
               <div className="min-w-0 flex-1">
                 <EditableName value={clip.name} onSave={(name) => renameClip(clip.id, name)} />
-                <p className="text-sm text-neutral-500">
+                <p className="flex items-center gap-1.5 text-sm text-neutral-500">
                   {isRecording ? 'กำลังอัด...' : formatDuration(clip.duration)}
+                  {!isRecording && supabase && <SyncIcon synced={clip.syncStatus === 'synced'} />}
                 </p>
               </div>
             </li>

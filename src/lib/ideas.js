@@ -1,5 +1,8 @@
 import { db } from './db'
 import { defaultFolderName } from './format'
+import { requestSync } from './sync'
+
+// ทุกฟังก์ชันที่แก้ข้อมูล: ตั้ง syncStatus 'local' (= ยังไม่ขึ้นคลาวด์) แล้วเรียก requestSync()
 
 // ตะกร้า = คลิปที่ยังไม่มีโฟลเดอร์ (folderId เป็น null)
 // ทุกตะกร้าที่จบจะถูกย้ายเข้าโฟลเดอร์เสมอ แอปเลยมีตะกร้าเดียวตลอด
@@ -79,9 +82,10 @@ export async function fileBasket({ folderId, newFolderName, isAuto = false }) {
     // ข้ามคลิปที่กำลังอัดอยู่ (ปกติปุ่มกดไม่ได้ระหว่างอัด แต่กันไว้ก่อน)
     await db.clips
       .filter((clip) => clip.folderId == null && clip.status === 'done')
-      .modify({ folderId: targetId, updatedAt: Date.now() })
+      .modify({ folderId: targetId, updatedAt: Date.now(), syncStatus: 'local' })
   })
   startNewSession()
+  requestSync()
 }
 
 const AUTO_FOLDER_PATTERN = /^ลืมกดหมดไอเดีย (\d+)$/
@@ -101,9 +105,11 @@ export async function fileForgottenBasket() {
 }
 
 export async function renameClip(id, name) {
-  await db.clips.update(id, { name: name.trim(), updatedAt: Date.now() })
+  await db.clips.update(id, { name: name.trim(), updatedAt: Date.now(), syncStatus: 'local' })
+  requestSync()
 }
 
 export async function renameFolder(id, name) {
-  await db.folders.update(id, { name: name.trim(), updatedAt: Date.now() })
+  await db.folders.update(id, { name: name.trim(), updatedAt: Date.now(), syncStatus: 'local' })
+  requestSync()
 }
